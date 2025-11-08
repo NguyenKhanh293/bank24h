@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Thiệp Sinh Nhật - Babi Thmuoi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg1:#ffeef6;--bg2:#fff6fb;--accent:#ff6fa8;--muted:#7b7280}
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:linear-gradient(180deg,var(--bg1),var(--bg2)); color:#081020; min-height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden}
+
+    /* falling hearts canvas sits behind all UI */
+    #heartsCanvas{position:fixed; inset:0; z-index:0; pointer-events:none}
+
+    /* stage */
+    .stage{position:relative; z-index:3; width:100%; height:100vh; display:flex; align-items:center; justify-content:center}
+
+    /* envelope */
+    .envelope-wrap{width:420px; height:260px; display:flex; align-items:center; justify-content:center; position:relative; z-index:4}
+    .envelope{width:380px; height:220px; background:linear-gradient(180deg,#fff,#fff); border-radius:14px; box-shadow:0 18px 40px rgba(15,23,42,0.12); position:relative; transform-origin:center; cursor:pointer; transition:transform .36s ease}
+    .envelope .flap{position:absolute; left:0; right:0; top:-2px; height:110px; background:linear-gradient(180deg,#ffdfe9,#fff); border-top-left-radius:14px; border-top-right-radius:14px; transform-origin:top center; transition:transform .6s cubic-bezier(.2,.9,.3,1)}
+    .envelope.open{transform:scale(1.02)}
+    .envelope.open .flap{transform:rotateX(180deg)}
+
+    /* gentle hearts floating around envelope (small ones) */
+    .heart-decor{position:absolute; width:12px; height:12px; left:50%; top:20%; transform-origin:center; z-index:5}
+    .heart-decor svg{width:100%;height:100%}
+    .heart-anim{animation:floaty 3.6s ease-in-out infinite}
+    .heart-anim.delay1{animation-delay:.2s}
+    .heart-anim.delay2{animation-delay:.4s}
+    .heart-anim.delay3{animation-delay:.6s}
+    @keyframes floaty{0%{transform:translate(-50%,0) translateY(0) scale(.95)}50%{transform:translate(-50%,-10px) scale(1.05)}100%{transform:translate(-50%,0) scale(.95)}}
+
+    /* card (horizontal) */
+    .card{position:absolute; width:360px; height:200px; left:50%; top:50%; transform:translate(-50%,-50%) scale(.96); background:linear-gradient(180deg,#fff,#fff); border-radius:12px; box-shadow:0 14px 30px rgba(2,6,23,0.08); padding:22px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; opacity:0; pointer-events:none; transition:all .45s cubic-bezier(.2,.9,.3,1)}
+    .card.show{opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1)}
+    .card-inner{width:100%; height:100%; border-radius:10px; padding:18px; box-sizing:border-box; border:1px solid rgba(0,0,0,0.03); overflow:hidden; display:flex; flex-direction:column; justify-content:center}
+    .card .title{font-family:'Dancing Script', cursive; font-size:22px; color:var(--accent); margin-bottom:8px}
+    .card .message{font-family:'Dancing Script', cursive; font-size:16px; color:#334155; line-height:1.5; padding:0 10px; max-height:84%; overflow:auto}
+
+    /* tulip decor (hand-drawn feel) around corners retained but subtle */
+    .tulip{position:fixed; z-index:2; width:110px; height:110px; opacity:0.95; pointer-events:none}
+    .tulip.small{width:72px;height:72px}
+
+    /* controls minimal */
+    .hint{position:fixed; left:20px; bottom:20px; color:#6b7280; font-size:13px; z-index:5}
+    .controls{position:fixed; right:22px; bottom:22px; z-index:5; display:flex; gap:10px}
+    .btn{background:#fff; border:1px solid rgba(0,0,0,0.06); color:#081020; padding:10px 12px; border-radius:10px; cursor:pointer; box-shadow:0 6px 18px rgba(11,15,30,0.04)}
+
+    /* responsive tweaks */
+    @media (max-width:520px){ .envelope-wrap{width:320px;height:210px} .envelope{width:300px;height:180px} .card{width:280px;height:170px} .tulip{width:72px;height:72px} }
+  </style>
+</head>
+<body>
+  <canvas id="heartsCanvas"></canvas>
+
+  <!-- tulip decorations around the page (kept subtle) -->
+  <div class="tulip" style="left:8px; top:12px; z-index:2;">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32 6c6 0 10 6 10 6s-4 6-10 6-10-6-10-6 4-6 10-6z" fill="#FFC1D9"/>
+      <path d="M24 20c4 2 8 0 8 0s-2 6 2 10c-6-2-8 2-8 2s0-10-2-12z" fill="#FF85C0" opacity="0.9"/>
+      <path d="M34 40c2 8 0 14 0 14s-6-6-8-14c2 6 6 6 8 0z" fill="#6FBF73"/>
+    </svg>
+  </div>
+  <div class="tulip small" style="right:10px; top:18px; z-index:2;">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32 6c6 0 10 6 10 6s-4 6-10 6-10-6-10-6 4-6 10-6z" fill="#E0C7FF"/>
+      <path d="M24 20c4 2 8 0 8 0s-2 6 2 10c-6-2-8 2-8 2s0-10-2-12z" fill="#CDA8FF" opacity="0.95"/>
+      <path d="M34 40c2 8 0 14 0 14s-6-6-8-14c2 6 6 6 8 0z" fill="#6FBF73"/>
+    </svg>
+  </div>
+
+  <div class="stage">
+    <div class="envelope-wrap" aria-label="Phong bì thiệp">
+      <div class="envelope locked" id="envelope" role="button" tabindex="0" aria-pressed="false">
+        <div class="flap" id="flap"></div>
+
+        <!-- small heart decorations that float gently around the envelope -->
+        <div class="heart-decor heart-anim delay1" style="left:28%; top:28%; z-index:6;">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21s-7-4.35-9.2-7.2C-1.3 9.85 4.6 4 12 9c7.4-5 13.3.85 9.2 4.8C19 16.65 12 21 12 21z" fill="#FF85C0"/></svg>
+        </div>
+        <div class="heart-decor heart-anim delay2" style="left:62%; top:34%; z-index:6;">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21s-7-4.35-9.2-7.2C-1.3 9.85 4.6 4 12 9c7.4-5 13.3.85 9.2 4.8C19 16.65 12 21 12 21z" fill="#E0C7FF"/></svg>
+        </div>
+        <div class="heart-decor heart-anim delay3" style="left:50%; top:18%; z-index:6;">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 21s-7-4.35-9.2-7.2C-1.3 9.85 4.6 4 12 9c7.4-5 13.3.85 9.2 4.8C19 16.65 12 21 12 21z" fill="#FFF6F6"/></svg>
+        </div>
+
+        <!-- subtle tulip stamp on envelope -->
+        <svg style="position:absolute; right:12px; bottom:10px; width:84px; opacity:0.9; pointer-events:none; z-index:4" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <path d="M32 6c6 0 10 6 10 6s-4 6-10 6-10-6-10-6 4-6 10-6z" fill="#FFD7EC"/>
+          <path d="M34 22c3 1 4 0 4 0s-1 4 1 6c-3-1-4 1-4 1s0-6-1-7z" fill="#FFC1E6" opacity="0.95"/>
+        </svg>
+
+        <!-- card hidden behind flap until opened -->
+        <div class="card" id="card">
+          <div class="card-inner">
+            <div class="title">Chúc mừng sinh nhật, babi Thmuoi!</div>
+            <div class="message" id="message">Chúc mừng sinh nhật babi Thmuoi nhé =)))
+
+Năm nay xin slot chúc cuối để nhường slot đầu cho các azai khác on top thoi hẹ hẹ :3
+Btw mong em luôn có những ngày bình yên và hạnh phúc bên bb và người thân(thương) nha! ^^</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="downloadBtn">⬇ Tải trang</button>
+  </div>
+  <div class="hint">Nhấp vào phong bì ở giữa để mở thiệp, phát nhạc và bắn pháo hoa tự động.</div>
+
+  <!-- YouTube IFrame API (will initialize on first user open) -->
+  <div id="yt-player" style="display:none"></div>
+
+  <script>
+    const envelope = document.getElementById('envelope');
+    const card = document.getElementById('card');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // YouTube song id
+    const YT_VIDEO_ID = 'sQlQpKpQOpc';
+    let ytPlayer = null;
+    function loadYouTubeAPI(){
+      if(window.YT) return initPlayer();
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.body.appendChild(tag);
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
+    function initPlayer(){
+      ytPlayer = new YT.Player('yt-player', {
+        height: '0', width: '0', videoId: YT_VIDEO_ID, playerVars: { 'playsinline': 1, 'rel': 0, 'modestbranding':1 }, events: {
+          'onReady': function(e){ /* ready */ }
+        }
+      });
+    }
+
+    // hearts falling background canvas
+    const canvas = document.getElementById('heartsCanvas');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = innerWidth; let H = canvas.height = innerHeight;
+    window.addEventListener('resize', ()=>{ W = canvas.width = innerWidth; H = canvas.height = innerHeight; });
+
+    function random(min,max){return Math.random()*(max-min)+min}
+
+    const hearts = [];
+    function makeHeart(){
+      const size = random(8,22);
+      hearts.push({x:random(0,W), y:random(-50, -10), r:size, vx:random(-0.4,0.4), vy:random(0.4,1.2), hue: [330, 300, 350, 0][Math.floor(random(0,4))], alpha: random(0.6,0.95), sway: random(0.3,1.2)});
+    }
+    // prepopulate
+    for(let i=0;i<90;i++){ makeHeart(); }
+
+    function drawHeart(x,y,r,hue,alpha){
+      ctx.save(); ctx.translate(x,y); ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      const s = r/2;
+      ctx.moveTo(0, -s);
+      ctx.bezierCurveTo(s,-s, s, s, 0, s*1.6);
+      ctx.bezierCurveTo(-s, s, -s,-s, 0,-s);
+      ctx.closePath();
+      ctx.fillStyle = `hsl(${hue} 80% 70%)`;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function updateHearts(){
+      ctx.clearRect(0,0,W,H);
+      for(let i=hearts.length-1;i>=0;i--){
+        const h = hearts[i];
+        h.x += h.vx + Math.sin(h.sway * (Date.now()/1000))/6;
+        h.y += h.vy;
+        drawHeart(h.x, h.y, h.r, h.hue, h.alpha);
+        if(h.y > H + 30) {
+          hearts.splice(i,1);
+          makeHeart();
+        }
+      }
+    }
+
+    // small particle fireworks (reuse heartsCanvas)
+    const particles = [];
+    function spawnFirework(x,y,count=120){
+      const hue = random(300,360);
+      for(let i=0;i<count;i++){
+        const angle = Math.random()*Math.PI*2;
+        const speed = Math.random()*5 + 1.5;
+        particles.push({x,y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, life: random(40,110), r: random(2,4), hue, alpha:1});
+      }
+    }
+
+    function updateParticles(){
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.vy += 0.02; p.x += p.vx; p.y += p.vy; p.life -= 1; p.alpha = Math.max(0, p.life/110);
+        drawHeart(p.x, p.y, p.r*1.6, p.hue, p.alpha);
+        if(p.life<=0) particles.splice(i,1);
+      }
+    }
+
+    function loop(){ requestAnimationFrame(loop); updateHearts(); updateParticles(); }
+    loop();
+
+    // When opening envelope: open, show card, spawn fireworks (hearts), play song
+    function openEnvelope(){
+      envelope.classList.add('open');
+      card.classList.add('show');
+      // spawn a few heart-fireworks around the card area
+      const cx = window.innerWidth/2; const cy = window.innerHeight/2 - 40;
+      for(let i=0;i<6;i++){ spawnFirework(cx + random(-140,140), cy + random(-60,60), 90 + Math.floor(random(-20,40))); }
+      // load & play music (user-gesture already)
+      if(!ytPlayer){ loadYouTubeAPI(); setTimeout(()=>{ if(ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo(); }, 900); }
+      else if(ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo();
+    }
+
+    envelope.addEventListener('click', ()=>{
+      if(envelope.classList.contains('open')){
+        envelope.classList.remove('open'); card.classList.remove('show'); if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+      } else {
+        openEnvelope();
+      }
+    });
+
+    // clicking stage also spawns a single heart-firework (for fun)
+    document.querySelector('.stage').addEventListener('click', (e)=>{
+      if(e.target.closest('.envelope')) return; spawnFirework(e.clientX, e.clientY, 70);
+    });
+
+    // download page
+    downloadBtn.addEventListener('click', ()=>{
+      const blob = new Blob([document.documentElement.outerHTML], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download = 'thiệp-sinh-nhat-babi-thmuoi.html'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+  </script>
+</body>
+</html>
